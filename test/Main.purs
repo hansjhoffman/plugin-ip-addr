@@ -28,3 +28,24 @@ main = launchAff_ $ runSpec [consoleReporter] do
         actual = parse "255.255.255.255"
         expected = "255.255.255.255"
       actual `shouldEqual` expected
+
+    it "should handle '256.255.255.255'" do
+      let
+        actual = parse "256.255.255.255"
+        expected = "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n256.255.255.255"
+      actual `shouldEqual` expected
+    it "should handle '255.256.255.255'" do
+      let
+        actual = parse "255.256.255.255"
+        expected = "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n255.256.255.255"
+      actual `shouldEqual` expected
+    it "should handle '255.255.256.255'" do
+      let
+        actual = parse "255.255.256.255"
+        expected = "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n255.255.256.255"
+      actual `shouldEqual` expected
+    it "should handle '255.255.255.256'" do
+      let
+        actual = parse "256.255.255.256"
+        expected = "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n256.255.255.256"
+      actual `shouldEqual` expected

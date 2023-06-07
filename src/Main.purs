@@ -37,7 +37,10 @@ pOctet = Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
 
 -- | INTERNAL
 isOctetValid :: String -> Boolean
-isOctetValid octet = fromMaybe false $ flip (<=) 255 <$> Int.fromString octet
+isOctetValid octet =
+  fromMaybe false
+    $ flip (<=) 255
+        <$> Int.fromString octet
 
 -- | INTERNAL
 -- |
@@ -67,7 +70,7 @@ parser = do
 -- | INTERNAL
 mkIPv4 :: String -> String -> String -> String -> IPv4
 mkIPv4 octet1 octet2 octet3 octet4 =
-  IPv4 $ Data.Foldable.intercalate "." [octet1, octet2, octet3, octet4]
+  IPv4 $ Data.Foldable.intercalate "." [ octet1, octet2, octet3, octet4 ]
 
 -- | Parse a string as a possible ip.
 -- parse :: String -> Either String IP
