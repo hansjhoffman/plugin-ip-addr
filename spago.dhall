@@ -16,6 +16,8 @@ to generate this file without the comments in this block.
   , "control"
   , "either"
   , "foldable-traversable"
+  , "integers"
+  , "maybe"
   , "parsing"
   , "prelude"
   , "strings"

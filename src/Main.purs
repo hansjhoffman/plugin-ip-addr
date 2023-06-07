@@ -10,8 +10,8 @@ import Prelude
 import Data.CodePoint.Unicode as Unicode
 import Data.Either (Either(..))
 import Data.Foldable as Data.Foldable
--- import Data.Maybe (isJust)
--- import Data.Int as Int
+import Data.Int as Int
+import Data.Maybe (fromMaybe)
 import Data.String as Data.String
 import Parsing (Parser)
 import Parsing as Parsing
@@ -36,6 +36,10 @@ pOctet = Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
   <?> "a decimal digit"
 
 -- | INTERNAL
+isOctetValid :: String -> Boolean
+isOctetValid octet = fromMaybe false $ flip (<=) 255 <$> Int.fromString octet
+
+-- | INTERNAL
 -- |
 -- | A parser for any 'reasonable' ip.
 parser :: Parser String IPv4
@@ -49,11 +53,16 @@ parser = do
   octet4 <- pOctet
   Parsing.String.eof <?> "end of string"
 
-  -- if (isJust $ (>) 255 <=< Int.fromString octet1) then
-  --   Parsing.fail "octet can only be 0-255"
-  -- else
-  --   pure $ mkIPv4 octet1 octet2 octet3 octet4
-  pure $ mkIPv4 octet1 octet2 octet3 octet4
+  if (not isOctetValid octet1) then
+    Parsing.fail "octet can only be 0-255"
+  else if (not isOctetValid octet2) then
+    Parsing.fail "octet can only be 0-255"
+  else if (not isOctetValid octet3) then
+    Parsing.fail "octet can only be 0-255"
+  else if (not isOctetValid octet4) then
+    Parsing.fail "octet can only be 0-255"
+  else
+    pure $ mkIPv4 octet1 octet2 octet3 octet4
 
 -- | INTERNAL
 mkIPv4 :: String -> String -> String -> String -> IPv4
