@@ -15,6 +15,7 @@ to generate this file without the comments in this block.
   [ "bifunctors"
   , "control"
   , "either"
+  , "foldable-traversable"
   , "parsing"
   , "prelude"
   , "strings"

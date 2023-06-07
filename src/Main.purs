@@ -1,59 +1,75 @@
 module Main
-  ( Email
+  ( IPv4
   , parse
   , toString
   ) where
 
 import Prelude
 
--- import Control.Alt ((<|>))
-import Data.Bifunctor (lmap)
+-- import Data.Bifunctor (lmap)
 import Data.CodePoint.Unicode as Unicode
-import Data.Either (Either)
-import Data.String as Str
+import Data.Either (Either(..))
+import Data.Foldable as Data.Foldable
+-- import Data.Maybe (isJust)
+-- import Data.Int as Int
+import Data.String as Data.String
 import Parsing (Parser)
 import Parsing as Parsing
--- import Parsing.Combinators ((<?>))
--- import Parsing.Combinators as Parsing.Combinators
+import Parsing.Combinators ((<?>))
 import Parsing.String as Parsing.String
 import Parsing.String.Basic as Parsing.String.Basic
 
-newtype Email = Email String
+newtype IPv4 = IPv4 String
 
-instance showEmail :: Show Email where
-  show (Email email) = "(Email " <> show email <> ")"
+instance showIPv4 :: Show IPv4 where
+  show (IPv4 ip) = "(IPv4 " <> show ip <> ")"
 
-instance eqEmail :: Eq Email where
-  eq (Email email1) (Email email2) = email1 == email2
+instance eqIPv4 :: Eq IPv4 where
+  eq (IPv4 ip1) (IPv4 ip2) = ip1 == ip2
 
-toString :: Email -> String
-toString (Email email) = email
-
--- | INTERNAL
-pLocal :: Parser String String
-pLocal = Parsing.String.Basic.takeWhile1 Unicode.isAsciiLower
+toString :: IPv4 -> String
+toString (IPv4 ip) = ip
 
 -- | INTERNAL
-pDomain :: Parser String String
-pDomain = do
-  a <- Parsing.String.Basic.takeWhile1 Unicode.isAsciiLower
-  _ <- Parsing.String.char '.'
-  b <- Parsing.String.Basic.takeWhile1 Unicode.isAsciiLower
-  pure $ a <> "." <> b
+pOctet :: Parser String String
+pOctet = Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
+  <?> "a decimal digit"
 
 -- | INTERNAL
 -- |
--- | A parser for any 'reasonable' email.
-parser :: Parser String Email
+-- | A parser for any 'reasonable' ip.
+parser :: Parser String IPv4
 parser = do
-  localPart <- pLocal
-  _ <- Parsing.String.char '@'
-  domain <- pDomain
-  Parsing.String.eof
-  pure $ Email (localPart <> "@" <> domain)
+  octet1 <- pOctet
+  _ <- Parsing.String.char '.'
+  octet2 <- pOctet
+  _ <- Parsing.String.char '.'
+  octet3 <- pOctet
+  _ <- Parsing.String.char '.'
+  octet4 <- pOctet
+  Parsing.String.eof <?> "end of string"
 
--- | Parse a string as a possible email.
-parse :: String -> Either String Email
-parse = lmap Parsing.parseErrorMessage
-  <<< flip Parsing.runParser parser
-  <<< (Str.toLower <<< Str.trim)
+  -- if (isJust $ (>) 255 <=< Int.fromString octet1) then
+  --   Parsing.fail "octet can only be 0-255"
+  -- else
+  --   pure $ mkIPv4 octet1 octet2 octet3 octet4
+  pure $ mkIPv4 octet1 octet2 octet3 octet4
+
+-- | INTERNAL
+mkIPv4 :: String -> String -> String -> String -> IPv4
+mkIPv4 octet1 octet2 octet3 octet4 =
+  IPv4 $ Data.Foldable.intercalate "." [octet1, octet2, octet3, octet4]
+
+-- | Parse a string as a possible ip.
+-- parse :: String -> Either String IP
+-- parse = lmap Parsing.parseErrorMessage
+--   <<< flip Parsing.runParser parser
+--   <<< Str.trim
+
+parse :: String -> String
+parse input = do
+  case (flip Parsing.runParser parser $ Data.String.trim input) of
+    Left err ->
+      Data.String.joinWith "\n" $ Parsing.String.parseErrorHuman input 20 err
+    Right ip ->
+      toString ip
