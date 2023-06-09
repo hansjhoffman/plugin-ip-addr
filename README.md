@@ -1,6 +1,6 @@
-# plugin-boolean-field
+# plugin-ip-addr
 
-> parser for Flatfile boolean fields
+> parser for Flatfile IPv4 / IPv6 fields
 
 ## License
 
