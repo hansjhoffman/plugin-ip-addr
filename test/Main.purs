@@ -4,7 +4,7 @@ import Prelude
 
 import Effect (Effect)
 import Effect.Aff (launchAff_)
-import Main (parse)
+import Main (parse_)
 import Test.Spec (describe, it)
 import Test.Spec.Assertions (shouldEqual)
 import Test.Spec.Reporter.Console (consoleReporter)
@@ -13,39 +13,12 @@ import Test.Spec.Runner (runSpec)
 main :: Effect Unit
 main = launchAff_ $ runSpec [consoleReporter] do
   describe "parse" do
-    it "should handle '127.0.0.1'" do
-      let
-        actual = parse "127.0.0.1"
-        expected = "127.0.0.1"
-      actual `shouldEqual` expected
-    it "should handle '0.0.0.0'" do
-      let
-        actual = parse "0.0.0.0"
-        expected = "0.0.0.0"
-      actual `shouldEqual` expected
-    it "should handle '255.255.255.255'" do
-      let
-        actual = parse "255.255.255.255"
-        expected = "255.255.255.255"
-      actual `shouldEqual` expected
-
-    it "should handle '256.255.255.255'" do
-      let
-        actual = parse "256.255.255.255"
-        expected = "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n256.255.255.255"
-      actual `shouldEqual` expected
-    it "should handle '255.256.255.255'" do
-      let
-        actual = parse "255.256.255.255"
-        expected = "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n255.256.255.255"
-      actual `shouldEqual` expected
-    it "should handle '255.255.256.255'" do
-      let
-        actual = parse "255.255.256.255"
-        expected = "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n255.255.256.255"
-      actual `shouldEqual` expected
-    it "should handle '255.255.255.256'" do
-      let
-        actual = parse "256.255.255.256"
-        expected = "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n256.255.255.256"
-      actual `shouldEqual` expected
+    it "should handle valid IPv4 addresses" do
+      (parse_ "127.0.0.1") `shouldEqual` "127.0.0.1"
+      (parse_ "0.0.0.0") `shouldEqual` "0.0.0.0"
+      (parse_ "255.255.255.255") `shouldEqual` "255.255.255.255"
+    it "should handle invalid IPv4 addresses" do
+      (parse_ "256.255.255.255") `shouldEqual` "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n256.255.255.255"
+      (parse_ "255.256.255.255") `shouldEqual` "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n255.256.255.255"
+      (parse_ "255.255.256.255") `shouldEqual` "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n255.255.256.255"
+      (parse_ "255.255.255.256") `shouldEqual` "octet can only be 0-255 at position index:15 (line:1, column:16)\n               ▼\n255.255.255.256"

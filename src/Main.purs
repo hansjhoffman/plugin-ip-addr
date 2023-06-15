@@ -1,6 +1,6 @@
 module Main
   ( IPv4
-  , parse
+  , parse_
   , toString
   ) where
 
@@ -78,8 +78,8 @@ mkIPv4 octet1 octet2 octet3 octet4 =
 --   <<< flip Parsing.runParser parser
 --   <<< Str.trim
 
-parse :: String -> String
-parse input = do
+parse_ :: String -> String
+parse_ input = do
   case (flip Parsing.runParser parser $ Data.String.trim input) of
     Left err ->
       Data.String.joinWith "\n" $ Parsing.String.parseErrorHuman input 20 err
