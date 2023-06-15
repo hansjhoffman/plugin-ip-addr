@@ -27,9 +27,6 @@ instance showIPv4 :: Show IPv4 where
 instance eqIPv4 :: Eq IPv4 where
   eq (IPv4 ip1) (IPv4 ip2) = ip1 == ip2
 
-toString :: IPv4 -> String
-toString (IPv4 ip) = ip
-
 -- | INTERNAL
 pOctet :: Parser String String
 pOctet = Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
@@ -57,13 +54,17 @@ parser = do
   Parsing.String.eof <?> "end of string"
 
   if (not isOctetValid octet1) then
-    Parsing.fail "octet can only be 0-255"
+    Parsing.failWithPosition "Octet can only be 0-255" $
+      Parsing.Position { column: 1, index: 0, line: 1 }
   else if (not isOctetValid octet2) then
-    Parsing.fail "octet can only be 0-255"
+    Parsing.failWithPosition "Octet can only be 0-255" $
+      Parsing.Position { column: 5, index: 4, line: 1 }
   else if (not isOctetValid octet3) then
-    Parsing.fail "octet can only be 0-255"
+    Parsing.failWithPosition "Octet can only be 0-255" $
+      Parsing.Position { column: 9, index: 8, line: 1 }
   else if (not isOctetValid octet4) then
-    Parsing.fail "octet can only be 0-255"
+    Parsing.failWithPosition "Octet can only be 0-255" $
+      Parsing.Position { column: 13, index: 12, line: 1 }
   else
     pure $ mkIPv4 octet1 octet2 octet3 octet4
 
@@ -84,3 +85,7 @@ parse_ :: String -> Either String IPv4
 parse_ = lmap prettyError
   <<< flip Parsing.runParser parser
   <<< Data.String.trim
+
+-- | Unwrap IPv4 type
+toString :: IPv4 -> String
+toString (IPv4 ip) = ip
