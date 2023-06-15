@@ -6,9 +6,9 @@ module Main
 
 import Prelude
 
--- import Data.Bifunctor (lmap)
+import Data.Bifunctor (lmap)
 import Data.CodePoint.Unicode as Unicode
-import Data.Either (Either(..))
+import Data.Either (Either)
 import Data.Foldable as Data.Foldable
 import Data.Int as Int
 import Data.Maybe (fromMaybe)
@@ -72,16 +72,15 @@ mkIPv4 :: String -> String -> String -> String -> IPv4
 mkIPv4 octet1 octet2 octet3 octet4 =
   IPv4 $ Data.Foldable.intercalate "." [ octet1, octet2, octet3, octet4 ]
 
--- | Parse a string as a possible ip.
--- parse :: String -> Either String IP
--- parse = lmap Parsing.parseErrorMessage
---   <<< flip Parsing.runParser parser
---   <<< Str.trim
+-- | INTERNAL
+prettyError :: Parsing.ParseError -> String
+prettyError err = msg <> " at position " <> show col
+  where
+  msg = Parsing.parseErrorMessage err
+  Parsing.Position { column: col, index: _, line: _ } = Parsing.parseErrorPosition err
 
-parse_ :: String -> String
-parse_ input = do
-  case (flip Parsing.runParser parser $ Data.String.trim input) of
-    Left err ->
-      Data.String.joinWith "\n" $ Parsing.String.parseErrorHuman input 20 err
-    Right ip ->
-      toString ip
+-- | Parse a string as a possible IPv4 address.
+parse_ :: String -> Either String IPv4
+parse_ = lmap prettyError
+  <<< flip Parsing.runParser parser
+  <<< Data.String.trim
