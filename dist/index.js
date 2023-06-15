@@ -2030,7 +2030,7 @@ var showIPv4 = {
 var prettyError = function(err) {
   var msg = parseErrorMessage(err);
   var v = parseErrorPosition(err);
-  return msg + (" at position " + show1(v.column));
+  return msg + (" starting at position " + show1(v.column));
 };
 var pOctet = /* @__PURE__ */ withErrorMessage(/* @__PURE__ */ takeWhile1(isDecDigit))("a decimal digit");
 var mkIPv4 = function(octet1) {

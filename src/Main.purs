@@ -75,7 +75,7 @@ mkIPv4 octet1 octet2 octet3 octet4 =
 
 -- | INTERNAL
 prettyError :: Parsing.ParseError -> String
-prettyError err = msg <> " at position " <> show col
+prettyError err = msg <> " starting at position " <> show col
   where
   msg = Parsing.parseErrorMessage err
   Parsing.Position { column: col, index: _, line: _ } = Parsing.parseErrorPosition err
