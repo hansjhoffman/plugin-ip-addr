@@ -1,7 +1,7 @@
 module Main
-  ( IPv4
+  ( IPv4(..)
   , parse_
-  , toString
+  , toString_
   ) where
 
 import Prelude
@@ -9,9 +9,12 @@ import Prelude
 import Data.Bifunctor (lmap)
 import Data.CodePoint.Unicode as Unicode
 import Data.Either (Either)
-import Data.Foldable as Data.Foldable
+import Data.Foldable (intercalate)
+import Data.Generic.Rep (class Generic)
 import Data.Int as Int
 import Data.Maybe (fromMaybe)
+import Data.Newtype (class Newtype, unwrap)
+import Data.Show.Generic (genericShow)
 import Data.String as Data.String
 import Parsing (Parser)
 import Parsing as Parsing
@@ -21,11 +24,14 @@ import Parsing.String.Basic as Parsing.String.Basic
 
 newtype IPv4 = IPv4 String
 
-instance showIPv4 :: Show IPv4 where
-  show (IPv4 ip) = "(IPv4 " <> show ip <> ")"
+derive instance eqIPv4 :: Eq IPv4
 
-instance eqIPv4 :: Eq IPv4 where
-  eq (IPv4 ip1) (IPv4 ip2) = ip1 == ip2
+derive instance newtypeIPv4 :: Newtype IPv4 _
+
+derive instance genericIPv4 :: Generic IPv4 _
+
+instance showIPv4 :: Show IPv4 where
+  show = genericShow
 
 -- | INTERNAL
 pOctet :: Parser String String
@@ -66,12 +72,14 @@ parser = do
     Parsing.failWithPosition "Octet can only be 0-255" $
       Parsing.Position { column: 13, index: 12, line: 1 }
   else
-    pure $ mkIPv4 octet1 octet2 octet3 octet4
-
--- | INTERNAL
-mkIPv4 :: String -> String -> String -> String -> IPv4
-mkIPv4 octet1 octet2 octet3 octet4 =
-  IPv4 $ Data.Foldable.intercalate "." [ octet1, octet2, octet3, octet4 ]
+    pure $ IPv4
+      ( intercalate "."
+          [ octet1
+          , octet2
+          , octet3
+          , octet4
+          ]
+      )
 
 -- | INTERNAL
 prettyError :: Parsing.ParseError -> String
@@ -86,6 +94,6 @@ parse_ = lmap prettyError
   <<< flip Parsing.runParser parser
   <<< Data.String.trim
 
--- | Unwrap IPv4 type
-toString :: IPv4 -> String
-toString (IPv4 ip) = ip
+-- | Unwraps a IPv4 type
+toString_ :: IPv4 -> String
+toString_ = unwrap
