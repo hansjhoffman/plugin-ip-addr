@@ -113,13 +113,12 @@ parse_ = lmap prettyError
 
 -- | Convert ...
 upConvert_ :: Eui48 -> Eui64
-upConvert_ = case _ of
-  SixGroupsByColon a -> do
-    let parts = Data.String.splitAt 9 a
-    EightGroupsByColon (parts.before <> ":FF:FE" <> parts.after)
-  SixGroupsByHyphen b -> do
-    let parts = Data.String.splitAt 9 b
-    EightGroupsByHyphen (parts.before <> "-FF-FE" <> parts.after)
-  ThreeGroupsByDot c -> do
-    let parts = Data.String.splitAt 7 c
-    FourGroupsByDot (parts.before <> "FF.FE" <> parts.after)
+upConvert_ (SixGroupsByColon mac) = do
+  let parts = Data.String.splitAt 9 mac
+  EightGroupsByColon (parts.before <> ":FF:FE" <> parts.after)
+upConvert_ (SixGroupsByHyphen mac) = do
+  let parts = Data.String.splitAt 9 mac
+  EightGroupsByHyphen (parts.before <> "-FF-FE" <> parts.after)
+upConvert_ (ThreeGroupsByDot mac) = do
+  let parts = Data.String.splitAt 7 mac
+  FourGroupsByDot (parts.before <> "FF.FE" <> parts.after)
