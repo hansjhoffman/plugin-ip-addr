@@ -10,12 +10,17 @@ import Prelude
 
 import Control.Alt ((<|>))
 import Data.Bifunctor (lmap)
+import Data.CodePoint.Unicode as Unicode
 import Data.Either (Either)
+import Data.Foldable (intercalate)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.String as Data.String
 import Parsing (Parser)
 import Parsing as Parsing
+import Parsing.Combinators ((<?>))
+import Parsing.String as Parsing.String
+import Parsing.String.Basic as String.Basic
 
 data MacAddr
   = IPv4 Eui48
@@ -60,8 +65,61 @@ pEui48 = pSixGroupsByColon
 
 -- | INTERNAL
 pSixGroupsByColon :: Parser String Eui48
-pSixGroupsByColon =
-  pure $ SixGroupsByColon "FF:FF:FF:FF:FF:FF"
+pSixGroupsByColon = do
+  group1 <-
+    String.Basic.takeWhile1 Unicode.isHexDigit
+      <?> "at least 1 hexadecimal char"
+  _ <- Parsing.String.char ':'
+  group2 <-
+    String.Basic.takeWhile1 Unicode.isHexDigit
+      <?> "at least 1 hexadecimal char"
+  _ <- Parsing.String.char ':'
+  group3 <-
+    String.Basic.takeWhile1 Unicode.isHexDigit
+      <?> "at least 1 hexadecimal char"
+  _ <- Parsing.String.char ':'
+  group4 <-
+    String.Basic.takeWhile1 Unicode.isHexDigit
+      <?> "at least 1 hexadecimal char"
+  _ <- Parsing.String.char ':'
+  group5 <-
+    String.Basic.takeWhile1 Unicode.isHexDigit
+      <?> "at least 1 hexadecimal char"
+  _ <- Parsing.String.char ':'
+  group6 <-
+    String.Basic.takeWhile1 Unicode.isHexDigit
+      <?> "at least 1 hexadecimal char"
+  Parsing.String.eof <?> "end of string"
+
+  if (Data.String.length group1 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Parsing.Position { column: 1, index: 0, line: 1 }
+  else if (Data.String.length group2 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Parsing.Position { column: 2, index: 3, line: 1 }
+  else if (Data.String.length group3 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Parsing.Position { column: 6, index: 7, line: 1 }
+  else if (Data.String.length group4 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Parsing.Position { column: 10, index: 11, line: 1 }
+  else if (Data.String.length group5 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Parsing.Position { column: 14, index: 15, line: 1 }
+  else if (Data.String.length group6 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Parsing.Position { column: 18, index: 19, line: 1 }
+  else
+    pure $ SixGroupsByColon
+      ( intercalate ":"
+          [ group1
+          , group2
+          , group3
+          , group4
+          , group5
+          , group6
+          ]
+      )
 
 -- | INTERNAL
 pSixGroupsByHyphen :: Parser String Eui48
