@@ -13,9 +13,8 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either(..))
 import Data.Int as Int
 import Data.Maybe (Maybe(..))
-import Data.String as String
 import Data.String.CodeUnits (fromCharArray, singleton)
-import Parsing (ParseError, Parser, Position(..))
+import Parsing (Parser)
 import Parsing as Parsing
 import Parsing.Combinators (choice, try, (<?>))
 import Parsing.String (char, eof, satisfy)
@@ -90,7 +89,6 @@ unsafeFromInts o1 o2 o3 o4 =
 parse_ :: String -> Either String IPv4
 parse_ = lmap Parsing.parseErrorMessage
   <<< flip Parsing.runParser parser
-  <<< String.trim
 
 print_ :: IPv4 -> String
 print_ (IPv4 o1 o2 o3 o4) =
