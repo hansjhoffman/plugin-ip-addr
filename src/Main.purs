@@ -1,4 +1,4 @@
--- https://github.com/purescript-contrib/purescript-uri/blob/v7.0.0/src/URI/Host/IPv4Address.purs#L56-L56
+-- Credit to https://github.com/purescript-contrib/purescript-uri/blob/v7.0.0/src/URI/Host/IPv4Address.purs
 
 module Main
   ( IPv4(..)
@@ -50,7 +50,7 @@ octet = toInt =<<
       , try ((\x y -> fromCharArray [ x, y ]) <$> nzDigit <*> digit)
       , (singleton <$> digit)
       ]
-  ) <?> "1-3 digit(s)"
+  ) <?> "octet to be 1-3 digit(s)"
 
 -- | Parsers a non-zero digit
 nzDigit :: Parser String Char
@@ -59,7 +59,10 @@ nzDigit = satisfy (\c -> c >= '1' && c <= '9')
 toInt ∷ String → Parser String Int
 toInt s = case Int.fromString s of
   Just n | n >= 0 && n <= 255 → Parsing.liftEither $ Right n
-  _ → Parsing.liftEither $ Left "IPv4 octet out of range"
+  _ → do
+    Position { column: col, index: idx, line: line } <- Parsing.position
+    -- _ → Parsing.liftEither $ Left "IPv4 octet out of range"
+    Parsing.failWithPosition "IPv4 octet out of range" $ Position { column: col - 3, index: idx, line: line }
 
 -- | INTERNAL
 -- |
