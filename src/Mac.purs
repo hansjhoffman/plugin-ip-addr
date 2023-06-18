@@ -10,17 +10,17 @@ import Prelude
 
 import Control.Alt ((<|>))
 import Data.Bifunctor (lmap)
-import Data.CodePoint.Unicode as Unicode
+import Data.CodePoint.Unicode (isHexDigit)
 import Data.Either (Either)
 import Data.Foldable (intercalate)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
-import Data.String as Data.String
-import Parsing (Parser)
+import Data.String as String
+import Parsing (Parser, ParseError, Position(..))
 import Parsing as Parsing
 import Parsing.Combinators ((<?>))
-import Parsing.String as Parsing.String
-import Parsing.String.Basic as String.Basic
+import Parsing.String (char, eof)
+import Parsing.String.Basic (takeWhile1)
 
 data MacAddr
   = IPv4 Eui48
@@ -66,49 +66,37 @@ pEui48 = pSixGroupsByColon
 -- | INTERNAL
 pSixGroupsByColon :: Parser String Eui48
 pSixGroupsByColon = do
-  group1 <-
-    String.Basic.takeWhile1 Unicode.isHexDigit
-      <?> "at least 1 hexadecimal char"
-  _ <- Parsing.String.char ':'
-  group2 <-
-    String.Basic.takeWhile1 Unicode.isHexDigit
-      <?> "at least 1 hexadecimal char"
-  _ <- Parsing.String.char ':'
-  group3 <-
-    String.Basic.takeWhile1 Unicode.isHexDigit
-      <?> "at least 1 hexadecimal char"
-  _ <- Parsing.String.char ':'
-  group4 <-
-    String.Basic.takeWhile1 Unicode.isHexDigit
-      <?> "at least 1 hexadecimal char"
-  _ <- Parsing.String.char ':'
-  group5 <-
-    String.Basic.takeWhile1 Unicode.isHexDigit
-      <?> "at least 1 hexadecimal char"
-  _ <- Parsing.String.char ':'
-  group6 <-
-    String.Basic.takeWhile1 Unicode.isHexDigit
-      <?> "at least 1 hexadecimal char"
-  Parsing.String.eof <?> "end of string"
+  group1 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char ':'
+  group2 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char ':'
+  group3 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char ':'
+  group4 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char ':'
+  group5 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char ':'
+  group6 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  eof <?> "end of string"
 
-  if (Data.String.length group1 /= 2) then
+  if (String.length group1 /= 2) then
     Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Parsing.Position { column: 1, index: 0, line: 1 }
-  else if (Data.String.length group2 /= 2) then
+      Position { column: 1, index: 0, line: 1 }
+  else if (String.length group2 /= 2) then
     Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Parsing.Position { column: 2, index: 3, line: 1 }
-  else if (Data.String.length group3 /= 2) then
+      Position { column: 2, index: 3, line: 1 }
+  else if (String.length group3 /= 2) then
     Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Parsing.Position { column: 6, index: 7, line: 1 }
-  else if (Data.String.length group4 /= 2) then
+      Position { column: 6, index: 7, line: 1 }
+  else if (String.length group4 /= 2) then
     Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Parsing.Position { column: 10, index: 11, line: 1 }
-  else if (Data.String.length group5 /= 2) then
+      Position { column: 10, index: 11, line: 1 }
+  else if (String.length group5 /= 2) then
     Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Parsing.Position { column: 14, index: 15, line: 1 }
-  else if (Data.String.length group6 /= 2) then
+      Position { column: 14, index: 15, line: 1 }
+  else if (String.length group6 /= 2) then
     Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Parsing.Position { column: 18, index: 19, line: 1 }
+      Position { column: 18, index: 19, line: 1 }
   else
     pure $ SixGroupsByColon
       ( intercalate ":"
@@ -157,26 +145,26 @@ parser :: Parser String MacAddr
 parser = (IPv4 <$> pEui48) <|> (IPv6 <$> pEui64)
 
 -- | INTERNAL
-prettyError :: Parsing.ParseError -> String
+prettyError :: ParseError -> String
 prettyError err = msg <> " starting at position " <> show col
   where
   msg = Parsing.parseErrorMessage err
-  Parsing.Position { column: col, index: _, line: _ } = Parsing.parseErrorPosition err
+  Position { column: col, index: _, line: _ } = Parsing.parseErrorPosition err
 
 -- | Parse a string as a possible mac address.
 parse_ :: String -> Either String MacAddr
 parse_ = lmap prettyError
   <<< flip Parsing.runParser parser
-  <<< (Data.String.toUpper <<< Data.String.trim)
+  <<< (String.toUpper <<< String.trim)
 
 -- | Convert ...
 upConvert_ :: Eui48 -> Eui64
 upConvert_ (SixGroupsByColon mac) = do
-  let parts = Data.String.splitAt 9 mac
+  let parts = String.splitAt 9 mac
   EightGroupsByColon (parts.before <> ":FF:FE" <> parts.after)
 upConvert_ (SixGroupsByHyphen mac) = do
-  let parts = Data.String.splitAt 9 mac
+  let parts = String.splitAt 9 mac
   EightGroupsByHyphen (parts.before <> "-FF-FE" <> parts.after)
 upConvert_ (ThreeGroupsByDot mac) = do
-  let parts = Data.String.splitAt 7 mac
+  let parts = String.splitAt 7 mac
   FourGroupsByDot (parts.before <> "FF.FE" <> parts.after)

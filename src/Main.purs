@@ -15,7 +15,7 @@ import Data.Int as Int
 import Data.Maybe (fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
-import Data.String as Data.String
+import Data.String as String
 import Parsing (Parser, ParseError, Position(..))
 import Parsing as Parsing
 import Parsing.Combinators ((<?>))
@@ -87,7 +87,7 @@ prettyError err = msg <> " starting at position " <> show col
 parse_ :: String -> Either String IPv4
 parse_ = lmap prettyError
   <<< flip Parsing.runParser parser
-  <<< Data.String.trim
+  <<< String.trim
 
 -- | Unwraps an IPv4 type
 toString_ :: IPv4 -> String
