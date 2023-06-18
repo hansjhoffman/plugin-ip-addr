@@ -7,7 +7,7 @@ module Main
 import Prelude
 
 import Data.Bifunctor (lmap)
-import Data.CodePoint.Unicode as Unicode
+import Data.CodePoint.Unicode (isDecDigit)
 import Data.Either (Either)
 import Data.Foldable (intercalate)
 import Data.Generic.Rep (class Generic)
@@ -16,11 +16,11 @@ import Data.Maybe (fromMaybe)
 import Data.Newtype (class Newtype, unwrap)
 import Data.Show.Generic (genericShow)
 import Data.String as Data.String
-import Parsing (Parser)
+import Parsing (Parser, ParseError, Position(..))
 import Parsing as Parsing
 import Parsing.Combinators ((<?>))
-import Parsing.String as Parsing.String
-import Parsing.String.Basic as Parsing.String.Basic
+import Parsing.String (char, eof)
+import Parsing.String.Basic (takeWhile1)
 
 newtype IPv4 = IPv4 String
 
@@ -34,42 +34,38 @@ instance showIPv4 :: Show IPv4 where
   show = genericShow
 
 -- | INTERNAL
-isOctetValid :: String -> Boolean
-isOctetValid octet =
-  fromMaybe false
-    $ flip (<=) 255
-        <$> Int.fromString octet
-
--- | INTERNAL
 -- |
--- | A parser for any 'reasonable' ip.
+-- | A parser for an IP address according to the spec:
+-- | https://...
 parser :: Parser String IPv4
 parser = do
-  octet1 <- Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
-    <?> "a decimal digit"
-  _ <- Parsing.String.char '.'
-  octet2 <- Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
-    <?> "a decimal digit"
-  _ <- Parsing.String.char '.'
-  octet3 <- Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
-    <?> "a decimal digit"
-  _ <- Parsing.String.char '.'
-  octet4 <- Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
-    <?> "a decimal digit"
-  Parsing.String.eof <?> "end of string"
+  let
+    isOctetValid :: String -> Boolean
+    isOctetValid octet =
+      fromMaybe false
+        $ flip (<=) 255
+            <$> Int.fromString octet
+  octet1 <- takeWhile1 isDecDigit <?> "a decimal digit"
+  _ <- char '.'
+  octet2 <- takeWhile1 isDecDigit <?> "a decimal digit"
+  _ <- char '.'
+  octet3 <- takeWhile1 isDecDigit <?> "a decimal digit"
+  _ <- char '.'
+  octet4 <- takeWhile1 isDecDigit <?> "a decimal digit"
+  eof <?> "end of string"
 
   if (not isOctetValid octet1) then
     Parsing.failWithPosition "Octet can only be 0-255" $
-      Parsing.Position { column: 1, index: 0, line: 1 }
+      Position { column: 1, index: 0, line: 1 }
   else if (not isOctetValid octet2) then
     Parsing.failWithPosition "Octet can only be 0-255" $
-      Parsing.Position { column: 5, index: 4, line: 1 }
+      Position { column: 5, index: 4, line: 1 }
   else if (not isOctetValid octet3) then
     Parsing.failWithPosition "Octet can only be 0-255" $
-      Parsing.Position { column: 9, index: 8, line: 1 }
+      Position { column: 9, index: 8, line: 1 }
   else if (not isOctetValid octet4) then
     Parsing.failWithPosition "Octet can only be 0-255" $
-      Parsing.Position { column: 13, index: 12, line: 1 }
+      Position { column: 13, index: 12, line: 1 }
   else
     pure $ IPv4
       ( intercalate "."
@@ -81,11 +77,11 @@ parser = do
       )
 
 -- | INTERNAL
-prettyError :: Parsing.ParseError -> String
+prettyError :: ParseError -> String
 prettyError err = msg <> " starting at position " <> show col
   where
   msg = Parsing.parseErrorMessage err
-  Parsing.Position { column: col, index: _, line: _ } = Parsing.parseErrorPosition err
+  Position { column: col, index: _, line: _ } = Parsing.parseErrorPosition err
 
 -- | Parse a string as a possible IPv4 address.
 parse_ :: String -> Either String IPv4
