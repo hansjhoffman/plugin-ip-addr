@@ -18,7 +18,7 @@ import Data.Show.Generic (genericShow)
 import Data.String as String
 import Parsing (Parser, ParseError, Position(..))
 import Parsing as Parsing
-import Parsing.Combinators ((<?>))
+import Parsing.Combinators (choice, (<?>))
 import Parsing.String (char, eof)
 import Parsing.String.Basic (takeWhile1)
 
@@ -59,11 +59,15 @@ instance showEui64 :: Show Eui64 where
 
 -- | INTERNAL
 pEui48 :: Parser String Eui48
-pEui48 = pSixGroupsByColon
-  <|> pSixGroupsByHyphen
-  <|> pThreeGroupsByDot
+pEui48 = choice
+  [ pSixGroupsByColon
+  , pSixGroupsByHyphen
+  , pThreeGroupsByDot
+  ]
 
 -- | INTERNAL
+-- |
+-- | Format: FF:FF:FF:FF:FF:FF
 pSixGroupsByColon :: Parser String Eui48
 pSixGroupsByColon = do
   group1 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
@@ -110,32 +114,108 @@ pSixGroupsByColon = do
       )
 
 -- | INTERNAL
+-- |
+-- | Format: "FF-FF-FF-FF-FF-FF"
 pSixGroupsByHyphen :: Parser String Eui48
-pSixGroupsByHyphen =
-  pure $ SixGroupsByHyphen "FF-FF-FF-FF-FF-FF"
+pSixGroupsByHyphen = do
+  group1 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char '-'
+  group2 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char '-'
+  group3 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char '-'
+  group4 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char '-'
+  group5 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char '-'
+  group6 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  eof <?> "end of string"
+
+  if (String.length group1 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Position { column: 1, index: 0, line: 1 }
+  else if (String.length group2 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Position { column: 2, index: 3, line: 1 }
+  else if (String.length group3 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Position { column: 6, index: 7, line: 1 }
+  else if (String.length group4 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Position { column: 10, index: 11, line: 1 }
+  else if (String.length group5 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Position { column: 14, index: 15, line: 1 }
+  else if (String.length group6 /= 2) then
+    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
+      Position { column: 18, index: 19, line: 1 }
+  else
+    pure $ SixGroupsByHyphen
+      ( intercalate "-"
+          [ group1
+          , group2
+          , group3
+          , group4
+          , group5
+          , group6
+          ]
+      )
 
 -- | INTERNAL
+-- |
+-- | Format: "FFFF.FFFF.FFFF"
 pThreeGroupsByDot :: Parser String Eui48
-pThreeGroupsByDot =
-  pure $ ThreeGroupsByDot "FFFF.FFFF.FFFF"
+pThreeGroupsByDot = do
+  group1 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char '.'
+  group2 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  _ <- char '.'
+  group3 <- takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+  eof <?> "end of string"
+
+  if (String.length group1 /= 4) then
+    Parsing.failWithPosition "Expected 4 hexadecimal chars" $
+      Position { column: 1, index: 0, line: 1 }
+  else if (String.length group2 /= 4) then
+    Parsing.failWithPosition "Expected 4 hexadecimal chars" $
+      Position { column: 6, index: 5, line: 1 }
+  else if (String.length group3 /= 4) then
+    Parsing.failWithPosition "Expected 4 hexadecimal chars" $
+      Position { column: 11, index: 10, line: 1 }
+  else
+    pure $ ThreeGroupsByDot
+      ( intercalate "."
+          [ group1
+          , group2
+          , group3
+          ]
+      )
 
 -- | INTERNAL
 pEui64 :: Parser String Eui64
-pEui64 = pEightGroupsByColon
-  <|> pEightGroupsByHyphen
-  <|> pFourGroupsByDot
+pEui64 = choice
+  [ pEightGroupsByColon
+  , pEightGroupsByHyphen
+  , pFourGroupsByDot
+  ]
 
 -- | INTERNAL
+-- |
+-- | Format: "FF:FF:FF:FF:FF:FF:FF:FF"
 pEightGroupsByColon :: Parser String Eui64
 pEightGroupsByColon =
   pure $ EightGroupsByColon "FF:FF:FF:FF:FF:FF:FF:FF"
 
 -- | INTERNAL
+-- |
+-- | Format: "FF-FF-FF-FF-FF-FF-FF-FF"
 pEightGroupsByHyphen :: Parser String Eui64
 pEightGroupsByHyphen =
   pure $ EightGroupsByColon "FF-FF-FF-FF-FF-FF-FF-FF"
 
 -- | INTERNAL
+-- |
+-- | Format: "FFFF.FFFF.FFFF.FFFF"
 pFourGroupsByDot :: Parser String Eui64
 pFourGroupsByDot =
   pure $ FourGroupsByDot "FFFF.FFFF.FFFF.FFFF"
