@@ -77,6 +77,9 @@ parser = do
       )
 
 -- | INTERNAL
+-- |
+-- | Give the end user enough information about not only
+-- | WHAT went wrong, but also WHERE it wrong.
 prettyError :: ParseError -> String
 prettyError err = msg <> " starting at position " <> show col
   where

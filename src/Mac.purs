@@ -145,6 +145,9 @@ parser :: Parser String MacAddr
 parser = (IPv4 <$> pEui48) <|> (IPv6 <$> pEui64)
 
 -- | INTERNAL
+-- |
+-- | Give the end user enough information about not only
+-- | WHAT went wrong, but also WHERE it wrong.
 prettyError :: ParseError -> String
 prettyError err = msg <> " starting at position " <> show col
   where
