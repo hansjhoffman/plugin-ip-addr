@@ -1,78 +1,90 @@
+-- https://github.com/purescript-contrib/purescript-uri/blob/v7.0.0/src/URI/Host/IPv4Address.purs#L56-L56
+
 module Main
   ( IPv4(..)
   , parse_
-  , toString_
+  , print_
+  , unsafeFromInts
   ) where
 
 import Prelude
 
 import Data.Bifunctor (lmap)
-import Data.CodePoint.Unicode (isDecDigit)
-import Data.Either (Either)
-import Data.Foldable (intercalate)
-import Data.Generic.Rep (class Generic)
+import Data.Either (Either(..))
 import Data.Int as Int
-import Data.Maybe (fromMaybe)
-import Data.Newtype (class Newtype, unwrap)
-import Data.Show.Generic (genericShow)
+import Data.Maybe (Maybe(..))
 import Data.String as String
-import Parsing (Parser, ParseError, Position(..))
+import Data.String.CodeUnits (fromCharArray, singleton)
+import Parsing (ParseError, Parser, Position(..))
 import Parsing as Parsing
-import Parsing.Combinators ((<?>))
-import Parsing.String (char, eof)
-import Parsing.String.Basic (takeWhile1)
+import Parsing.Combinators (choice, try, (<?>))
+import Parsing.String (char, eof, satisfy)
+import Parsing.String.Basic (digit)
+import Partial.Unsafe (unsafeCrashWith)
 
-newtype IPv4 = IPv4 String
+data IPv4 = IPv4 Int Int Int Int
 
 derive instance eqIPv4 :: Eq IPv4
-derive instance newtypeIPv4 :: Newtype IPv4 _
-derive instance genericIPv4 :: Generic IPv4 _
+derive instance orIPv4 :: Ord IPv4
 
 instance showIPv4 :: Show IPv4 where
-  show = genericShow
+  show (IPv4 o1 o2 o3 o4) = "(IPv4 " <> show o1 <> " " <> show o2 <> " " <> show o3 <> " " <> show o4 <> ")"
 
 -- | INTERNAL
 -- |
--- | A parser for an IP address according to the spec:
--- | https://...
+-- | A parser for an IPv4 address according to the spec:
+-- | https://www.rfc-editor.org/rfc/rfc791
 parser :: Parser String IPv4
 parser = do
-  let
-    isOctetValid :: String -> Boolean
-    isOctetValid octet =
-      fromMaybe false
-        $ flip (<=) 255
-            <$> Int.fromString octet
-  o1 <- pOctet <* char '.'
-  o2 <- pOctet <* char '.'
-  o3 <- pOctet <* char '.'
-  o4 <- pOctet
+  o1 <- octet <* char '.'
+  o2 <- octet <* char '.'
+  o3 <- octet <* char '.'
+  o4 <- octet
   eof <?> "end of string"
+  pure $ IPv4 o1 o2 o3 o4
 
-  if (not isOctetValid o1) then
-    Parsing.failWithPosition "Octet can only be 0-255" $
-      Position { column: 1, index: 0, line: 1 }
-  else if (not isOctetValid o2) then
-    Parsing.failWithPosition "Octet can only be 0-255" $
-      Position { column: 5, index: 4, line: 1 }
-  else if (not isOctetValid o3) then
-    Parsing.failWithPosition "Octet can only be 0-255" $
-      Position { column: 9, index: 8, line: 1 }
-  else if (not isOctetValid o4) then
-    Parsing.failWithPosition "Octet can only be 0-255" $
-      Position { column: 13, index: 12, line: 1 }
-  else
-    pure $ IPv4
-      ( intercalate "."
-          [ o1
-          , o2
-          , o3
-          , o4
-          ]
-      )
+octet :: Parser String Int
+octet = toInt =<<
+  ( choice
+      [ try ((\x y z -> fromCharArray [ x, y, z ]) <$> nzDigit <*> digit <*> digit)
+      , try ((\x y -> fromCharArray [ x, y ]) <$> nzDigit <*> digit)
+      , (singleton <$> digit)
+      ]
+  ) <?> "1-3 digit(s)"
+
+-- | Parsers a non-zero digit
+nzDigit :: Parser String Char
+nzDigit = satisfy (\c -> c >= '1' && c <= '9')
+
+toInt ∷ String → Parser String Int
+toInt s = case Int.fromString s of
+  Just n | n >= 0 && n <= 255 → Parsing.liftEither $ Right n
+  _ → Parsing.liftEither $ Left "IPv4 octet out of range"
+
+-- | INTERNAL
+-- |
+-- | Constructs an `IPv4` address safely by bounds checking each
+-- | octet to ensure it is within the range 0-255 (inclusive).
+fromInts :: Int -> Int -> Int -> Int -> Maybe IPv4
+fromInts o1 o2 o3 o4 =
+  IPv4 <$> check o1 <*> check o2 <*> check o3 <*> check o4
   where
-  pOctet :: Parser String String
-  pOctet = takeWhile1 isDecDigit <?> "a decimal digit"
+  check ∷ Int → Maybe Int
+  check i
+    | i >= 0 && i <= 255 = Just i
+    | otherwise = Nothing
+
+-- | Constructs an `IPv4` address UNSAFELY: if any of the octets are
+-- | outside the allowable bounds, a runtime error will be thrown.
+-- |
+-- | This is intended as a convenience when describing `IPv4` addresses
+-- | statically in PureScript code, in all other cases `fromInts` should be
+-- | used.
+unsafeFromInts ∷ Int → Int → Int → Int → IPv4
+unsafeFromInts o1 o2 o3 o4 =
+  case fromInts o1 o2 o3 o4 of
+    Just addr → addr
+    Nothing → unsafeCrashWith "IPv4 octet was out of range"
 
 -- | INTERNAL
 -- |
@@ -84,12 +96,12 @@ prettyError err = msg <> " starting at position " <> show col
   msg = Parsing.parseErrorMessage err
   Position { column: col, index: _, line: _ } = Parsing.parseErrorPosition err
 
--- | Parse a string as a possible IPv4 address.
+-- | Parse a string as a possible `IPv4` address.
 parse_ :: String -> Either String IPv4
 parse_ = lmap prettyError
   <<< flip Parsing.runParser parser
   <<< String.trim
 
--- | Unwraps an IPv4 type
-toString_ :: IPv4 -> String
-toString_ = unwrap
+print_ :: IPv4 -> String
+print_ (IPv4 o1 o2 o3 o4) =
+  show o1 <> "." <> show o2 <> "." <> show o3 <> "." <> show o4
