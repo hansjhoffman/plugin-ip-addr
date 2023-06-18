@@ -35,12 +35,14 @@ main = launchAff_ $ runSpec [ consoleReporter ] do
         $ unsafeFromInts 255 255 255 255
     it "should handle invalid IPv4 addresses" do
       assertLeft (parse_ "127.0.0.1a")
-        $ "Expected end of string starting at position 10"
+        $ "Expected end of string"
       assertLeft (parse_ "256.255.255.255")
-        $ "IPv4 octet out of range starting at position 1"
+        $ "IPv4 octet out of range: 0 >= n <= 255"
       assertLeft (parse_ "255.256.255.255")
-        $ "IPv4 octet out of range starting at position 5"
+        $ "IPv4 octet out of range: 0 >= n <= 255"
       assertLeft (parse_ "255.255.256.255")
-        $ "IPv4 octet out of range starting at position 9"
+        $ "IPv4 octet out of range: 0 >= n <= 255"
       assertLeft (parse_ "255.255.255.256")
-        $ "IPv4 octet out of range starting at position 13"
+        $ "IPv4 octet out of range: 0 >= n <= 255"
+      assertLeft (parse_ "255.255.255.")
+        $ "Expected octet to be 1-3 digit(s)"

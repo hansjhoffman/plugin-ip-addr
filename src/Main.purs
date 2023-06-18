@@ -59,10 +59,7 @@ nzDigit = satisfy (\c -> c >= '1' && c <= '9')
 toInt ∷ String → Parser String Int
 toInt s = case Int.fromString s of
   Just n | n >= 0 && n <= 255 → Parsing.liftEither $ Right n
-  _ → do
-    Position { column: col, index: idx, line: line } <- Parsing.position
-    -- _ → Parsing.liftEither $ Left "IPv4 octet out of range"
-    Parsing.failWithPosition "IPv4 octet out of range" $ Position { column: col - 3, index: idx, line: line }
+  _ → Parsing.liftEither $ Left "IPv4 octet out of range: 0 >= n <= 255"
 
 -- | INTERNAL
 -- |
@@ -89,19 +86,9 @@ unsafeFromInts o1 o2 o3 o4 =
     Just addr → addr
     Nothing → unsafeCrashWith "IPv4 octet was out of range"
 
--- | INTERNAL
--- |
--- | Give the end user enough information about not only
--- | WHAT went wrong, but also WHERE it wrong.
-prettyError :: ParseError -> String
-prettyError err = msg <> " starting at position " <> show col
-  where
-  msg = Parsing.parseErrorMessage err
-  Position { column: col, index: _, line: _ } = Parsing.parseErrorPosition err
-
 -- | Parse a string as a possible `IPv4` address.
 parse_ :: String -> Either String IPv4
-parse_ = lmap prettyError
+parse_ = lmap Parsing.parseErrorMessage
   <<< flip Parsing.runParser parser
   <<< String.trim
 
