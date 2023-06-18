@@ -25,9 +25,7 @@ import Parsing.String.Basic (takeWhile1)
 newtype IPv4 = IPv4 String
 
 derive instance eqIPv4 :: Eq IPv4
-
 derive instance newtypeIPv4 :: Newtype IPv4 _
-
 derive instance genericIPv4 :: Generic IPv4 _
 
 instance showIPv4 :: Show IPv4 where
@@ -45,36 +43,36 @@ parser = do
       fromMaybe false
         $ flip (<=) 255
             <$> Int.fromString octet
-  octet1 <- takeWhile1 isDecDigit <?> "a decimal digit"
-  _ <- char '.'
-  octet2 <- takeWhile1 isDecDigit <?> "a decimal digit"
-  _ <- char '.'
-  octet3 <- takeWhile1 isDecDigit <?> "a decimal digit"
-  _ <- char '.'
-  octet4 <- takeWhile1 isDecDigit <?> "a decimal digit"
+  o1 <- pOctet <* char '.'
+  o2 <- pOctet <* char '.'
+  o3 <- pOctet <* char '.'
+  o4 <- pOctet
   eof <?> "end of string"
 
-  if (not isOctetValid octet1) then
+  if (not isOctetValid o1) then
     Parsing.failWithPosition "Octet can only be 0-255" $
       Position { column: 1, index: 0, line: 1 }
-  else if (not isOctetValid octet2) then
+  else if (not isOctetValid o2) then
     Parsing.failWithPosition "Octet can only be 0-255" $
       Position { column: 5, index: 4, line: 1 }
-  else if (not isOctetValid octet3) then
+  else if (not isOctetValid o3) then
     Parsing.failWithPosition "Octet can only be 0-255" $
       Position { column: 9, index: 8, line: 1 }
-  else if (not isOctetValid octet4) then
+  else if (not isOctetValid o4) then
     Parsing.failWithPosition "Octet can only be 0-255" $
       Position { column: 13, index: 12, line: 1 }
   else
     pure $ IPv4
       ( intercalate "."
-          [ octet1
-          , octet2
-          , octet3
-          , octet4
+          [ o1
+          , o2
+          , o3
+          , o4
           ]
       )
+  where
+  pOctet :: Parser String String
+  pOctet = takeWhile1 isDecDigit <?> "a decimal digit"
 
 -- | INTERNAL
 -- |
