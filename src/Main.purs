@@ -34,11 +34,6 @@ instance showIPv4 :: Show IPv4 where
   show = genericShow
 
 -- | INTERNAL
-pOctet :: Parser String String
-pOctet = Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
-  <?> "a decimal digit"
-
--- | INTERNAL
 isOctetValid :: String -> Boolean
 isOctetValid octet =
   fromMaybe false
@@ -50,13 +45,17 @@ isOctetValid octet =
 -- | A parser for any 'reasonable' ip.
 parser :: Parser String IPv4
 parser = do
-  octet1 <- pOctet
+  octet1 <- Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
+    <?> "a decimal digit"
   _ <- Parsing.String.char '.'
-  octet2 <- pOctet
+  octet2 <- Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
+    <?> "a decimal digit"
   _ <- Parsing.String.char '.'
-  octet3 <- pOctet
+  octet3 <- Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
+    <?> "a decimal digit"
   _ <- Parsing.String.char '.'
-  octet4 <- pOctet
+  octet4 <- Parsing.String.Basic.takeWhile1 Unicode.isDecDigit
+    <?> "a decimal digit"
   Parsing.String.eof <?> "end of string"
 
   if (not isOctetValid octet1) then
@@ -94,6 +93,6 @@ parse_ = lmap prettyError
   <<< flip Parsing.runParser parser
   <<< Data.String.trim
 
--- | Unwraps a IPv4 type
+-- | Unwraps an IPv4 type
 toString_ :: IPv4 -> String
 toString_ = unwrap
