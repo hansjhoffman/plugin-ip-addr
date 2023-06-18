@@ -10,16 +10,16 @@ import Prelude
 
 import Control.Alt ((<|>))
 import Data.Bifunctor (lmap)
-import Data.CodePoint.Unicode (isHexDigit)
 import Data.Either (Either)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.String as String
+import Data.String.CodeUnits (fromCharArray)
 import Parsing (Parser, ParseError, Position(..))
 import Parsing as Parsing
 import Parsing.Combinators (choice, try, (<?>))
 import Parsing.String (char, eof)
-import Parsing.String.Basic (takeWhile1)
+import Parsing.String.Basic (hexDigit)
 
 data MacAddr
   = IPv4 Eui48
@@ -53,166 +53,106 @@ derive instance genericEui64 :: Generic Eui64 _
 instance showEui64 :: Show Eui64 where
   show = genericShow
 
-octet :: Parser String String
-octet = takeWhile1 isHexDigit <?> "at least 1 hexadecimal char"
+octet2 :: Parser String String
+octet2 = (\x y -> fromCharArray [ x, y ]) <$> hexDigit <*> hexDigit <?> "octet to be 2 digits"
+
+octet4 :: Parser String String
+octet4 = (\w x y z -> fromCharArray [ w, x, y, z ]) <$> hexDigit <*> hexDigit <*> hexDigit <*> hexDigit <?> "octet to be 4 digits"
 
 -- | INTERNAL
-pEui48 :: Parser String Eui48
-pEui48 = try $ choice
-  [ pSixGroupsByColon
-  , pSixGroupsByHyphen
-  , pThreeGroupsByDot
+eui48Parser :: Parser String Eui48
+eui48Parser = choice
+  [ try sixGroupsByColon
+  , try sixGroupsByHyphen
+  , try threeGroupsByDot
   ]
-
--- | INTERNAL
--- |
--- | Format: FF:FF:FF:FF:FF:FF
-pSixGroupsByColon :: Parser String Eui48
-pSixGroupsByColon = do
-  o1 <- octet <* char ':'
-  o2 <- octet <* char ':'
-  o3 <- octet <* char ':'
-  o4 <- octet <* char ':'
-  o5 <- octet <* char ':'
-  o6 <- octet
-  eof <?> "end of string"
-
-  if (String.length o1 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 1, index: 0, line: 1 }
-  else if (String.length o2 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 2, index: 3, line: 1 }
-  else if (String.length o3 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 6, index: 7, line: 1 }
-  else if (String.length o4 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 10, index: 11, line: 1 }
-  else if (String.length o5 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 14, index: 15, line: 1 }
-  else if (String.length o6 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 18, index: 19, line: 1 }
-  else
+  where
+  -- | Format: FF:FF:FF:FF:FF:FF
+  sixGroupsByColon :: Parser String Eui48
+  sixGroupsByColon = do
+    o1 <- octet2 <* char ':'
+    o2 <- octet2 <* char ':'
+    o3 <- octet2 <* char ':'
+    o4 <- octet2 <* char ':'
+    o5 <- octet2 <* char ':'
+    o6 <- octet2
+    eof <?> "end of string"
     pure $ SixGroupsByColon
       (o1 <> ":" <> o2 <> ":" <> o3 <> ":" <> o4 <> ":" <> o5 <> ":" <> o6)
 
--- | INTERNAL
--- |
--- | Format: "FF-FF-FF-FF-FF-FF"
-pSixGroupsByHyphen :: Parser String Eui48
-pSixGroupsByHyphen = do
-  o1 <- octet <* char '-'
-  o2 <- octet <* char '-'
-  o3 <- octet <* char '-'
-  o4 <- octet <* char '-'
-  o5 <- octet <* char '-'
-  o6 <- octet
-  eof <?> "end of string"
-
-  if (String.length o1 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 1, index: 0, line: 1 }
-  else if (String.length o2 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 2, index: 3, line: 1 }
-  else if (String.length o3 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 6, index: 7, line: 1 }
-  else if (String.length o4 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 10, index: 11, line: 1 }
-  else if (String.length o5 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 14, index: 15, line: 1 }
-  else if (String.length o6 /= 2) then
-    Parsing.failWithPosition "Expected 2 hexadecimal chars" $
-      Position { column: 18, index: 19, line: 1 }
-  else
+  -- | Format: "FF-FF-FF-FF-FF-FF"
+  sixGroupsByHyphen :: Parser String Eui48
+  sixGroupsByHyphen = do
+    o1 <- octet2 <* char '-'
+    o2 <- octet2 <* char '-'
+    o3 <- octet2 <* char '-'
+    o4 <- octet2 <* char '-'
+    o5 <- octet2 <* char '-'
+    o6 <- octet2
+    eof <?> "end of string"
     pure $ SixGroupsByHyphen
       (o1 <> "-" <> o2 <> "-" <> o3 <> "-" <> o4 <> "-" <> o5 <> "-" <> o6)
 
--- | INTERNAL
--- |
--- | Format: "FFFF.FFFF.FFFF"
-pThreeGroupsByDot :: Parser String Eui48
-pThreeGroupsByDot = do
-  o1 <- octet <* char '.'
-  o2 <- octet <* char '.'
-  o3 <- octet
-  eof <?> "end of string"
-
-  if (String.length o1 /= 4) then
-    Parsing.failWithPosition "Expected 4 hexadecimal chars" $
-      Position { column: 1, index: 0, line: 1 }
-  else if (String.length o2 /= 4) then
-    Parsing.failWithPosition "Expected 4 hexadecimal chars" $
-      Position { column: 6, index: 5, line: 1 }
-  else if (String.length o3 /= 4) then
-    Parsing.failWithPosition "Expected 4 hexadecimal chars" $
-      Position { column: 11, index: 10, line: 1 }
-  else
+  -- | Format: "FFFF.FFFF.FFFF"
+  threeGroupsByDot :: Parser String Eui48
+  threeGroupsByDot = do
+    o1 <- octet4 <* char '.'
+    o2 <- octet4 <* char '.'
+    o3 <- octet4
+    eof <?> "end of string"
     pure $ ThreeGroupsByDot (o1 <> "." <> o2 <> "." <> o3)
 
 -- | INTERNAL
-pEui64 :: Parser String Eui64
-pEui64 = try $ choice
-  [ pEightGroupsByColon
-  , pEightGroupsByHyphen
-  , pFourGroupsByDot
+eui64Parser :: Parser String Eui64
+eui64Parser = choice
+  [ try eightGroupsByColon
+  , try eightGroupsByHyphen
+  , try fourGroupsByDot
   ]
+  where
+  -- | Format: "FF:FF:FF:FF:FF:FF:FF:FF"
+  eightGroupsByColon :: Parser String Eui64
+  eightGroupsByColon = do
+    o1 <- octet2 <* char ':'
+    o2 <- octet2 <* char ':'
+    o3 <- octet2 <* char ':'
+    o4 <- octet2 <* char ':'
+    o5 <- octet2 <* char ':'
+    o6 <- octet2 <* char ':'
+    o7 <- octet2 <* char ':'
+    o8 <- octet2
+    eof <?> "end of string"
+    pure $ EightGroupsByColon
+      (o1 <> ":" <> o2 <> ":" <> o3 <> ":" <> o4 <> ":" <> o5 <> ":" <> o6 <> ":" <> o7 <> ":" <> o8)
 
--- | INTERNAL
--- |
--- | Format: "FF:FF:FF:FF:FF:FF:FF:FF"
-pEightGroupsByColon :: Parser String Eui64
-pEightGroupsByColon = do
-  o1 <- octet <* char ':'
-  o2 <- octet <* char ':'
-  o3 <- octet <* char ':'
-  o4 <- octet <* char ':'
-  o5 <- octet <* char ':'
-  o6 <- octet <* char ':'
-  o7 <- octet <* char ':'
-  o8 <- octet
-  eof <?> "end of string"
-  pure $ EightGroupsByColon
-    (o1 <> ":" <> o2 <> ":" <> o3 <> ":" <> o4 <> ":" <> o5 <> ":" <> o6 <> ":" <> o7 <> ":" <> o8)
+  -- | Format: "FF-FF-FF-FF-FF-FF-FF-FF"
+  eightGroupsByHyphen :: Parser String Eui64
+  eightGroupsByHyphen = do
+    o1 <- octet2 <* char '-'
+    o2 <- octet2 <* char '-'
+    o3 <- octet2 <* char '-'
+    o4 <- octet2 <* char '-'
+    o5 <- octet2 <* char '-'
+    o6 <- octet2 <* char '-'
+    o7 <- octet2 <* char '-'
+    o8 <- octet2
+    eof <?> "end of string"
+    pure $ EightGroupsByColon
+      (o1 <> "-" <> o2 <> "-" <> o3 <> "-" <> o4 <> "-" <> o5 <> "-" <> o6 <> "-" <> o7 <> "-" <> o8)
 
--- | INTERNAL
--- |
--- | Format: "FF-FF-FF-FF-FF-FF-FF-FF"
-pEightGroupsByHyphen :: Parser String Eui64
-pEightGroupsByHyphen = do
-  o1 <- octet <* char '-'
-  o2 <- octet <* char '-'
-  o3 <- octet <* char '-'
-  o4 <- octet <* char '-'
-  o5 <- octet <* char '-'
-  o6 <- octet <* char '-'
-  o7 <- octet <* char '-'
-  o8 <- octet
-  eof <?> "end of string"
-  pure $ EightGroupsByColon
-    (o1 <> "-" <> o2 <> "-" <> o3 <> "-" <> o4 <> "-" <> o5 <> "-" <> o6 <> "-" <> o7 <> "-" <> o8)
-
--- | INTERNAL
--- |
--- | Format: "FFFF.FFFF.FFFF.FFFF"
-pFourGroupsByDot :: Parser String Eui64
-pFourGroupsByDot = do
-  o1 <- octet <* char '.'
-  o2 <- octet <* char '.'
-  o3 <- octet <* char '.'
-  o4 <- octet
-  pure $ FourGroupsByDot
-    (o1 <> "." <> o2 <> "." <> o3 <> "." <> o4)
+  -- | Format: "FFFF.FFFF.FFFF.FFFF"
+  fourGroupsByDot :: Parser String Eui64
+  fourGroupsByDot = do
+    o1 <- octet4 <* char '.'
+    o2 <- octet4 <* char '.'
+    o3 <- octet4 <* char '.'
+    o4 <- octet4
+    pure $ FourGroupsByDot
+      (o1 <> "." <> o2 <> "." <> o3 <> "." <> o4)
 
 -- | INTERNAL
 parser :: Parser String MacAddr
-parser = (IPv4 <$> pEui48) <|> (IPv6 <$> pEui64)
+parser = (IPv4 <$> eui48Parser) <|> (IPv6 <$> eui64Parser)
 
 -- | INTERNAL
 -- |

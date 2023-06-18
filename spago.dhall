@@ -21,7 +21,6 @@ to generate this file without the comments in this block.
   , "partial"
   , "prelude"
   , "strings"
-  , "unicode"
   ]
 , license = ""
 , packages = ./packages.dhall
