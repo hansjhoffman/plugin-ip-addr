@@ -2,8 +2,9 @@ module Mac
   ( Eui48(..)
   , Eui64(..)
   , MacAddr(..)
-  , upConvert_
+  , Octet
   , parse_
+  , print_
   ) where
 
 import Prelude
@@ -11,11 +12,12 @@ import Prelude
 import Control.Alt ((<|>))
 import Data.Bifunctor (lmap)
 import Data.Either (Either)
+import Data.Foldable (intercalate)
 import Data.Generic.Rep (class Generic)
 import Data.Show.Generic (genericShow)
 import Data.String as String
 import Data.String.CodeUnits (fromCharArray)
-import Parsing (Parser, ParseError, Position(..))
+import Parsing (Parser)
 import Parsing as Parsing
 import Parsing.Combinators (choice, try, (<?>))
 import Parsing.String (char, eof)
@@ -31,10 +33,12 @@ derive instance genericMacAddr :: Generic MacAddr _
 instance showMacAddr :: Show MacAddr where
   show = genericShow
 
+type Octet = String
+
 data Eui48
-  = SixGroupsByColon String
-  | SixGroupsByHyphen String
-  | ThreeGroupsByDot String
+  = SixGroupsByColon Octet Octet Octet Octet Octet Octet
+  | SixGroupsByHyphen Octet Octet Octet Octet Octet Octet
+  | ThreeGroupsByDot Octet Octet Octet
 
 derive instance eqEui48 :: Eq Eui48
 derive instance genericEui48 :: Generic Eui48 _
@@ -43,9 +47,9 @@ instance showEui48 :: Show Eui48 where
   show = genericShow
 
 data Eui64
-  = EightGroupsByColon String
-  | EightGroupsByHyphen String
-  | FourGroupsByDot String
+  = EightGroupsByColon Octet Octet Octet Octet Octet Octet Octet Octet
+  | EightGroupsByHyphen Octet Octet Octet Octet Octet Octet Octet Octet
+  | FourGroupsByDot Octet Octet Octet Octet
 
 derive instance eqEui64 :: Eq Eui64
 derive instance genericEui64 :: Generic Eui64 _
@@ -53,23 +57,23 @@ derive instance genericEui64 :: Generic Eui64 _
 instance showEui64 :: Show Eui64 where
   show = genericShow
 
-octet2 :: Parser String String
-octet2 = (\x y -> fromCharArray [ x, y ]) <$> hexDigit <*> hexDigit <?> "octet to be 2 digits"
+octet2 :: Parser String Octet
+octet2 = (\x y -> fromCharArray [ x, y ]) <$> hexDigit <*> hexDigit
 
-octet4 :: Parser String String
-octet4 = (\w x y z -> fromCharArray [ w, x, y, z ]) <$> hexDigit <*> hexDigit <*> hexDigit <*> hexDigit <?> "octet to be 4 digits"
+octet4 :: Parser String Octet
+octet4 = (\w x y z -> fromCharArray [ w, x, y, z ]) <$> hexDigit <*> hexDigit <*> hexDigit <*> hexDigit
 
 -- | INTERNAL
 eui48Parser :: Parser String Eui48
 eui48Parser = choice
-  [ try sixGroupsByColon
-  , try sixGroupsByHyphen
-  , try threeGroupsByDot
+  [ try pSixGroupsByColon
+  , try pSixGroupsByHyphen
+  , try pThreeGroupsByDot
   ]
   where
   -- | Format: FF:FF:FF:FF:FF:FF
-  sixGroupsByColon :: Parser String Eui48
-  sixGroupsByColon = do
+  pSixGroupsByColon :: Parser String Eui48
+  pSixGroupsByColon = do
     o1 <- octet2 <* char ':'
     o2 <- octet2 <* char ':'
     o3 <- octet2 <* char ':'
@@ -77,12 +81,11 @@ eui48Parser = choice
     o5 <- octet2 <* char ':'
     o6 <- octet2
     eof <?> "end of string"
-    pure $ SixGroupsByColon
-      (o1 <> ":" <> o2 <> ":" <> o3 <> ":" <> o4 <> ":" <> o5 <> ":" <> o6)
+    pure $ SixGroupsByColon o1 o2 o3 o4 o5 o6
 
   -- | Format: "FF-FF-FF-FF-FF-FF"
-  sixGroupsByHyphen :: Parser String Eui48
-  sixGroupsByHyphen = do
+  pSixGroupsByHyphen :: Parser String Eui48
+  pSixGroupsByHyphen = do
     o1 <- octet2 <* char '-'
     o2 <- octet2 <* char '-'
     o3 <- octet2 <* char '-'
@@ -90,29 +93,28 @@ eui48Parser = choice
     o5 <- octet2 <* char '-'
     o6 <- octet2
     eof <?> "end of string"
-    pure $ SixGroupsByHyphen
-      (o1 <> "-" <> o2 <> "-" <> o3 <> "-" <> o4 <> "-" <> o5 <> "-" <> o6)
+    pure $ SixGroupsByHyphen o1 o2 o3 o4 o5 o6
 
   -- | Format: "FFFF.FFFF.FFFF"
-  threeGroupsByDot :: Parser String Eui48
-  threeGroupsByDot = do
+  pThreeGroupsByDot :: Parser String Eui48
+  pThreeGroupsByDot = do
     o1 <- octet4 <* char '.'
     o2 <- octet4 <* char '.'
     o3 <- octet4
     eof <?> "end of string"
-    pure $ ThreeGroupsByDot (o1 <> "." <> o2 <> "." <> o3)
+    pure $ ThreeGroupsByDot o1 o2 o3
 
 -- | INTERNAL
 eui64Parser :: Parser String Eui64
 eui64Parser = choice
-  [ try eightGroupsByColon
-  , try eightGroupsByHyphen
-  , try fourGroupsByDot
+  [ try pEightGroupsByColon
+  , try pEightGroupsByHyphen
+  , try pFourGroupsByDot
   ]
   where
   -- | Format: "FF:FF:FF:FF:FF:FF:FF:FF"
-  eightGroupsByColon :: Parser String Eui64
-  eightGroupsByColon = do
+  pEightGroupsByColon :: Parser String Eui64
+  pEightGroupsByColon = do
     o1 <- octet2 <* char ':'
     o2 <- octet2 <* char ':'
     o3 <- octet2 <* char ':'
@@ -122,12 +124,11 @@ eui64Parser = choice
     o7 <- octet2 <* char ':'
     o8 <- octet2
     eof <?> "end of string"
-    pure $ EightGroupsByColon
-      (o1 <> ":" <> o2 <> ":" <> o3 <> ":" <> o4 <> ":" <> o5 <> ":" <> o6 <> ":" <> o7 <> ":" <> o8)
+    pure $ EightGroupsByColon o1 o2 o3 o4 o5 o6 o7 o8
 
   -- | Format: "FF-FF-FF-FF-FF-FF-FF-FF"
-  eightGroupsByHyphen :: Parser String Eui64
-  eightGroupsByHyphen = do
+  pEightGroupsByHyphen :: Parser String Eui64
+  pEightGroupsByHyphen = do
     o1 <- octet2 <* char '-'
     o2 <- octet2 <* char '-'
     o3 <- octet2 <* char '-'
@@ -137,47 +138,39 @@ eui64Parser = choice
     o7 <- octet2 <* char '-'
     o8 <- octet2
     eof <?> "end of string"
-    pure $ EightGroupsByColon
-      (o1 <> "-" <> o2 <> "-" <> o3 <> "-" <> o4 <> "-" <> o5 <> "-" <> o6 <> "-" <> o7 <> "-" <> o8)
+    pure $ EightGroupsByHyphen o1 o2 o3 o4 o5 o6 o7 o8
 
   -- | Format: "FFFF.FFFF.FFFF.FFFF"
-  fourGroupsByDot :: Parser String Eui64
-  fourGroupsByDot = do
+  pFourGroupsByDot :: Parser String Eui64
+  pFourGroupsByDot = do
     o1 <- octet4 <* char '.'
     o2 <- octet4 <* char '.'
     o3 <- octet4 <* char '.'
     o4 <- octet4
-    pure $ FourGroupsByDot
-      (o1 <> "." <> o2 <> "." <> o3 <> "." <> o4)
+    pure $ FourGroupsByDot o1 o2 o3 o4
 
 -- | INTERNAL
 parser :: Parser String MacAddr
 parser = (IPv4 <$> eui48Parser) <|> (IPv6 <$> eui64Parser)
 
--- | INTERNAL
--- |
--- | Give the end user enough information about not only
--- | WHAT went wrong, but also WHERE it wrong.
-prettyError :: ParseError -> String
-prettyError err = msg <> " starting at position " <> show col
-  where
-  msg = Parsing.parseErrorMessage err
-  Position { column: col, index: _, line: _ } = Parsing.parseErrorPosition err
-
 -- | Parse a string as a possible mac address.
 parse_ :: String -> Either String MacAddr
-parse_ = lmap prettyError
+parse_ = lmap Parsing.parseErrorMessage
   <<< flip Parsing.runParser parser
   <<< String.toUpper
 
--- | Convert ...
-upConvert_ :: Eui48 -> Eui64
-upConvert_ (SixGroupsByColon mac) = do
-  let parts = String.splitAt 9 mac
-  EightGroupsByColon (parts.before <> ":FF:FE" <> parts.after)
-upConvert_ (SixGroupsByHyphen mac) = do
-  let parts = String.splitAt 9 mac
-  EightGroupsByHyphen (parts.before <> "-FF-FE" <> parts.after)
-upConvert_ (ThreeGroupsByDot mac) = do
-  let parts = String.splitAt 7 mac
-  FourGroupsByDot (parts.before <> "FF.FE" <> parts.after)
+print_ :: MacAddr -> String
+print_ (IPv4 addr) = case addr of
+  (SixGroupsByColon o1 o2 o3 o4 o5 o6) ->
+    intercalate ":" [ o1, o2, o3, o4, o5, o6 ]
+  (SixGroupsByHyphen o1 o2 o3 o4 o5 o6) ->
+    intercalate "-" [ o1, o2, o3, o4, o5, o6 ]
+  (ThreeGroupsByDot o1 o2 o3) ->
+    intercalate "." [ o1, o2, o3 ]
+print_ (IPv6 addr) = case addr of
+  (EightGroupsByColon o1 o2 o3 o4 o5 o6 o7 o8) ->
+    intercalate ":" [ o1, o2, o3, o4, o5, o6, o7, o8 ]
+  (EightGroupsByHyphen o1 o2 o3 o4 o5 o6 o7 o8) ->
+    intercalate "-" [ o1, o2, o3, o4, o5, o6, o7, o8 ]
+  (FourGroupsByDot o1 o2 o3 o4) ->
+    intercalate "." [ o1, o2, o3, o4 ]
