@@ -30,7 +30,7 @@ spec =
       assertRight (print_ <$> parse_ "ff-ff-ff-ff-ff-ff") ("FF-FF-FF-FF-FF-FF")
       assertRight (print_ <$> parse_ "ffff.ffff.ffff") ("FFFF.FFFF.FFFF")
     it "should handle invalid IPv4 addresses" do
-      assertLeft (print_ <$> parse_ "ff:ff:ff:ff:ff:f") "Expected hex digit"
+      assertLeft (print_ <$> parse_ "f:ff:ff:ff:ff:ff") "Expected hex digit"
       assertLeft (print_ <$> parse_ "ff-ff:ff:ff:ff:ff") "asdf"
     it "should handle valid IPv6 addresses" do
       assertRight (print_ <$> parse_ "ff:ff:ff:ff:ff:ff:ff:ff") ("FF:FF:FF:FF:FF:FF:FF:FF")

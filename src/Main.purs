@@ -51,7 +51,7 @@ octet = toInt =<<
       ]
   ) <?> "octet to be 1-3 digit(s)"
 
--- | Parsers a non-zero digit
+-- | Parses a non-zero digit
 nzDigit :: Parser String Char
 nzDigit = satisfy (\c -> c >= '1' && c <= '9')
 
