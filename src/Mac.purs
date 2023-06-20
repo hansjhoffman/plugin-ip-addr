@@ -5,6 +5,7 @@ module Mac
   , Octet
   , parse_
   , print_
+  -- , unsafeFromString
   ) where
 
 import Prelude
@@ -14,6 +15,7 @@ import Data.Bifunctor (lmap)
 import Data.Either (Either)
 import Data.Foldable (intercalate)
 import Data.Generic.Rep (class Generic)
+-- import Data.Maybe (Maybe(..))
 import Data.Show.Generic (genericShow)
 import Data.String as String
 import Data.String.CodeUnits (fromCharArray)
@@ -22,6 +24,8 @@ import Parsing as Parsing
 import Parsing.Combinators (choice, try, (<?>))
 import Parsing.String (char, eof)
 import Parsing.String.Basic (hexDigit)
+
+-- import Partial.Unsafe (unsafeCrashWith)
 
 data MacAddr
   = IPv4 Eui48
@@ -158,6 +162,49 @@ parse_ :: String -> Either String MacAddr
 parse_ = lmap Parsing.parseErrorMessage
   <<< flip Parsing.runParser parser
   <<< String.toUpper
+
+-- unsafeFromString :: String -> Maybe MacAddr
+-- unsafeFromString =
+--   ( \str -> sixGroupsByColon str
+--       <|> sixGroupsByHyphen str
+--       <|> threeGroupsByDot str
+--       <|> eightGroupsByColon str
+--       <|> eightGroupsByHyphen str
+--       <|> fourGroupsByDot str
+--       <|> crash
+--   ) <<< String.toUpper
+--   where
+--   sixGroupsByColon :: String -> Maybe MacAddr
+--   sixGroupsByColon s = case String.split (String.Pattern ":") s of
+--     [ o1, o2, o3, o4, o5, o6 ] -> Just $ IPv4 (SixGroupsByColon o1 o2 o3 o4 o5 o6)
+--     _ -> Nothing
+
+--   sixGroupsByHyphen :: String -> Maybe MacAddr
+--   sixGroupsByHyphen s = case String.split (String.Pattern "-") s of
+--     [ o1, o2, o3, o4, o5, o6 ] -> Just $ IPv4 (SixGroupsByHyphen o1 o2 o3 o4 o5 o6)
+--     _ -> Nothing
+
+--   threeGroupsByDot :: String -> Maybe MacAddr
+--   threeGroupsByDot s = case String.split (String.Pattern ".") s of
+--     [ o1, o2, o3 ] -> Just $ IPv4 (ThreeGroupsByDot o1 o2 o3)
+--     _ -> Nothing
+
+--   eightGroupsByColon :: String -> Maybe MacAddr
+--   eightGroupsByColon s = case String.split (String.Pattern ":") s of
+--     [ o1, o2, o3, o4, o5, o6, o7, o8 ] -> Just $ IPv6 (EightGroupsByColon o1 o2 o3 o4 o5 o6 o7 o8)
+--     _ -> Nothing
+
+--   eightGroupsByHyphen :: String -> Maybe MacAddr
+--   eightGroupsByHyphen s = case String.split (String.Pattern "-") s of
+--     [ o1, o2, o3, o4, o5, o6, o7, o8 ] -> Just $ IPv6 (EightGroupsByHyphen o1 o2 o3 o4 o5 o6 o7 o8)
+--     _ -> Nothing
+
+--   fourGroupsByDot :: String -> Maybe MacAddr
+--   fourGroupsByDot s = case String.split (String.Pattern ".") s of
+--     [ o1, o2, o3, o4 ] -> Just $ IPv6 (FourGroupsByDot o1 o2 o3 o4)
+--     _ -> Nothing
+
+--   crash = Just $ unsafeCrashWith "asdf"
 
 print_ :: MacAddr -> String
 print_ (IPv4 addr) = case addr of
